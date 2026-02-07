@@ -1,0 +1,34 @@
+{
+    "name": "peekmd",
+    "version": "1.0.0",
+    "description": "Render and browse Markdown files from any folder with one command.",
+    "author": "",
+    "license": "MIT",
+    "bin": {
+        "peekmd": "./bin/peekmd.js"
+    },
+    "files": [
+        "bin",
+        "src",
+        "README.md"
+    ],
+    "engines": {
+        "node": ">=18"
+    },
+    "keywords": [
+        "markdown",
+        "preview",
+        "mermaid",
+        "diagrams",
+        "cli",
+        "viewer",
+        "documentation",
+        "live-reload",
+        "dark-theme"
+    ],
+    "dependencies": {
+        "chokidar": "^3.6.0",
+        "express": "^4.21.0",
+        "ws": "^8.18.0"
+    }
+}
