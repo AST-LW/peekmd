@@ -1,7 +1,7 @@
 {
     "name": "peekmd",
     "version": "1.0.0",
-    "description": "Render and browse Markdown files from any folder with one command.",
+    "description": "A CLI tool that renders Markdown files in the browser and live-reloads on every file save.",
     "author": "",
     "license": "MIT",
     "bin": {
@@ -29,6 +29,7 @@
     "dependencies": {
         "chokidar": "^3.6.0",
         "express": "^4.21.0",
+        "picomatch": "^4.0.3",
         "ws": "^8.18.0"
     }
 }

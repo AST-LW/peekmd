@@ -78,11 +78,27 @@ body {
     padding: 16px 16px 12px;
     border-bottom: 1px solid var(--border);
 }
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 .logo {
     font-size: 16px;
     font-weight: 700;
     letter-spacing: -0.3px;
     color: var(--accent);
+}
+.connection-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--danger);
+    flex-shrink: 0;
+}
+.connection-status.connected {
+    background: #4ade80;
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
 }
 .header-actions {
     display: flex;
@@ -289,6 +305,32 @@ body {
     white-space: nowrap;
 }
 
+/* compact path shown when folder basenames collide */
+.folder-label-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.folder-name {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: none;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.folder-path-compact {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+
 .folder-chevron {
     width: 14px;
     height: 14px;
@@ -412,6 +454,19 @@ body {
 }
 .file-item.active .file-icon {
     opacity: 1;
+}
+
+/* small badge on file items to indicate source folder when needed */
+.file-badge {
+    background: var(--bg-sidebar);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    line-height: 1;
+    margin-left: 2px;
+    margin-right: 6px;
+    flex-shrink: 0;
 }
 
 /* ── Empty State ───────────────────────────────────────────────────── */
@@ -789,6 +844,206 @@ body {
     height: auto;
 }
 
+/* ── Config Panel ──────────────────────────────────────────────────── */
+
+.config-modal {
+    width: 520px;
+}
+
+.config-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+.config-tab {
+    flex: 1;
+    padding: 9px 0;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all var(--speed);
+}
+.config-tab:hover {
+    color: var(--text);
+}
+.config-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.config-panel {
+    animation: fadeIn 0.15s ease;
+}
+
+.config-list {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-bottom: 12px;
+}
+
+.config-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    transition: background var(--speed);
+}
+.config-item:last-child {
+    border-bottom: none;
+}
+.config-item:hover {
+    background: var(--bg-hover);
+}
+
+.config-item-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+    overflow: visible;
+}
+
+/* meta block for folder entries (name + detail stacked) */
+.config-item-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    overflow: hidden;
+}
+.config-item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.config-item-name code {
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    font-size: 12px;
+    padding: 1px 5px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+.config-item-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.config-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.config-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.config-badge-exact {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+.config-badge-glob {
+    background: rgba(100, 120, 200, 0.12);
+    color: #5568c8;
+}
+[data-theme="dark"] .config-badge-glob {
+    background: rgba(130, 150, 220, 0.12);
+    color: #8a9de0;
+}
+.config-badge-regex {
+    background: rgba(180, 130, 60, 0.12);
+    color: #b8860b;
+}
+[data-theme="dark"] .config-badge-regex {
+    background: rgba(220, 170, 80, 0.12);
+    color: #dcaa50;
+}
+
+.config-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    flex-shrink: 0;
+    transition: all var(--speed);
+}
+.config-item:hover .config-remove {
+    opacity: 1;
+}
+.config-remove:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.config-add-row {
+    display: flex;
+    gap: 8px;
+}
+.config-add-row .modal-input {
+    flex: 1;
+}
+
+.btn-sm {
+    padding: 7px 14px;
+    font-size: 12px;
+}
+
+.config-empty {
+    padding: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.config-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+.config-hint code {
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    font-size: 11px;
+    padding: 1px 5px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+}
+
 /* ── Scrollbar ─────────────────────────────────────────────────────── */
 
 ::-webkit-scrollbar {
@@ -804,6 +1059,41 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
+}
+
+/* ── Instant Tooltip ───────────────────────────────────────────────── */
+
+[data-tip] {
+    /* placeholder so elements with data-tip remain positioned normally */
+    position: relative;
+}
+
+/* Floating tooltip appended to document.body to avoid clipping inside scrollable containers */
+.floating-tooltip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -6px);
+    padding: 6px 10px;
+    font-size: 11px;
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    line-height: 1.3;
+    white-space: nowrap;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    z-index: 99999;
+    opacity: 0;
+    transition: opacity 0.06s linear;
+}
+.floating-tooltip.show {
+    opacity: 1;
 }
 
 @media (max-width: 768px) {

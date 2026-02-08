@@ -85,6 +85,26 @@ const HELP = `
     peekmd link <dir> [dir2] ...    Link folders for persistent tracking
     peekmd unlink <dir> [dir2] ...  Remove folders from tracking
     peekmd list                     Show all linked folders
+
+  Ignore:
+    peekmd ignore <pattern> ...     Ignore folders/files by glob pattern
+    peekmd unignore <pattern> ...   Remove an ignore pattern
+    peekmd ignored                  Show all active ignore patterns
+
+  Glob Pattern Examples:
+    **/node_modules/**              Ignore all node_modules folders
+    **/*.draft.md                   Ignore all .draft.md files
+    docs/private/**                 Ignore everything under docs/private
+    *.tmp                           Ignore .tmp files at any depth
+
+  AI / Machine-readable output:
+    peekmd list --json              Linked folders as JSON
+    peekmd ignored --json           Ignore patterns as JSON
+    peekmd status --json            Server status as JSON
+    peekmd search <query>           Search files and content (JSON)
+    peekmd files                    List all markdown files (JSON)
+
+  Other:
     peekmd --help                   Show this help
 
   Environment:
@@ -147,6 +167,17 @@ switch (cmd) {
 
     case "list": {
         const folders = config.getFolders();
+        if (rest.includes("--json")) {
+            const names = config.getDisplayNames(folders);
+            console.log(
+                JSON.stringify(
+                    folders.map((f, i) => ({ name: names[i], path: f })),
+                    null,
+                    2,
+                ),
+            );
+            break;
+        }
         if (!folders.length) {
             console.log("  No folders linked. Run: peekmd link <dir>");
             break;
@@ -214,16 +245,114 @@ switch (cmd) {
 
     case "status": {
         const id = pid.read();
-        if (id && pid.alive(id)) {
+        const running = !!(id && pid.alive(id));
+        if (!running && id) pid.clear();
+        if (rest.includes("--json")) {
+            console.log(
+                JSON.stringify({
+                    running,
+                    pid: running ? id : null,
+                    port: Number(process.env.PORT) || 4000,
+                }),
+            );
+            break;
+        }
+        if (running) {
             console.log(
                 "  ✓ Server running (PID: %d, port: %s)",
                 id,
                 process.env.PORT || 4000,
             );
         } else {
-            if (id) pid.clear();
             console.log("  Server not running");
         }
+        break;
+    }
+
+    case "ignore": {
+        if (!rest.length) {
+            console.error("  Usage: peekmd ignore <pattern> [pattern2] ...");
+            console.error(
+                "  Examples: peekmd ignore '**/node_modules/**' '**/dist/**'",
+            );
+            console.error("           peekmd ignore '**/*.draft.md'");
+            process.exit(1);
+        }
+        for (const p of rest) {
+            const r = config.addIgnorePattern(p);
+            console.log(
+                r.added
+                    ? "  \u2713 Ignoring    %s"
+                    : "  \u00b7 Already ignored    %s",
+                p,
+            );
+        }
+        break;
+    }
+
+    case "unignore": {
+        if (!rest.length) {
+            console.error("  Usage: peekmd unignore <pattern> [pattern2] ...");
+            process.exit(1);
+        }
+        for (const p of rest) {
+            const r = config.removeIgnorePattern(p);
+            console.log(
+                r.removed
+                    ? "  \u2713 Removed    %s"
+                    : "  \u00b7 Not in ignore list    %s",
+                p,
+            );
+        }
+        break;
+    }
+
+    case "ignored": {
+        const patterns = config.getIgnorePatterns();
+        if (rest.includes("--json")) {
+            console.log(
+                JSON.stringify(
+                    patterns.map((p) => ({ pattern: p })),
+                    null,
+                    2,
+                ),
+            );
+            break;
+        }
+        if (!patterns.length) {
+            console.log(
+                "  No ignore patterns set. Run: peekmd ignore <pattern>",
+            );
+            break;
+        }
+        console.log("\n  Ignore patterns (glob):\n");
+        for (const p of patterns) {
+            console.log("    %s", p);
+        }
+        console.log();
+        break;
+    }
+
+    case "search": {
+        /* Search across linked folders — outputs JSON for AI agents */
+        const query = rest.filter((a) => !a.startsWith("--")).join(" ");
+        if (!query) {
+            console.error("  Usage: peekmd search <query>");
+            process.exit(1);
+        }
+        const { searchCli } = require("../src/server");
+        searchCli(config.getFolders(), query)
+            .then((r) => console.log(JSON.stringify(r, null, 2)))
+            .catch(() => process.exit(1));
+        break;
+    }
+
+    case "files": {
+        /* List all markdown files across linked folders — JSON output */
+        const { listFilesCli } = require("../src/server");
+        listFilesCli(config.getFolders())
+            .then((r) => console.log(JSON.stringify(r, null, 2)))
+            .catch(() => process.exit(1));
         break;
     }
 

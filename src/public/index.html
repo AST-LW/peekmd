@@ -10,13 +10,20 @@
         <div class="layout">
             <aside class="sidebar">
                 <div class="sidebar-header">
-                    <h1 class="logo">PeekMD</h1>
+                    <div class="logo-container">
+                        <h1 class="logo">PeekMD</h1>
+                        <span
+                            class="connection-status"
+                            id="connectionStatus"
+                            data-tip="Live reload connected"
+                        ></span>
+                    </div>
                     <div class="header-actions">
                         <button
                             class="icon-btn"
                             id="refreshBtn"
                             aria-label="Refresh folders"
-                            title="Refresh folders"
+                            data-tip="Refresh folders"
                         >
                             <svg
                                 viewBox="0 0 24 24"
@@ -39,7 +46,7 @@
                             class="icon-btn"
                             id="addFolderBtn"
                             aria-label="Link folder"
-                            title="Link folder"
+                            data-tip="Link folder"
                         >
                             <svg
                                 viewBox="0 0 24 24"
@@ -60,9 +67,31 @@
                         </button>
                         <button
                             class="icon-btn"
+                            id="configBtn"
+                            aria-label="Settings"
+                            data-tip="Settings"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                width="16"
+                                height="16"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <circle cx="12" cy="12" r="3" />
+                                <path
+                                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                                />
+                            </svg>
+                        </button>
+                        <button
+                            class="icon-btn"
                             id="themeToggle"
                             aria-label="Toggle theme"
-                            title="Toggle theme"
+                            data-tip="Toggle theme"
                         >
                             <svg
                                 class="icon-sun"
@@ -202,6 +231,93 @@
                     <button class="btn btn-primary" id="modalConfirm">
                         Link
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Config / Settings Modal -->
+        <div class="modal-overlay" id="configOverlay">
+            <div class="modal config-modal">
+                <div class="modal-header">
+                    <span class="modal-title">Settings</span>
+                    <button
+                        class="icon-btn modal-close"
+                        id="configClose"
+                        aria-label="Close"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            width="16"
+                            height="16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="config-tabs">
+                    <button class="config-tab active" data-tab="folders">
+                        Folders
+                    </button>
+                    <button class="config-tab" data-tab="ignore">
+                        Ignore Patterns
+                    </button>
+                </div>
+
+                <!-- Folders tab -->
+                <div class="config-panel" id="configFolders">
+                    <div class="config-list" id="configFolderList"></div>
+                    <div class="config-add-row">
+                        <input
+                            class="modal-input"
+                            id="configFolderInput"
+                            type="text"
+                            placeholder="/path/to/folder"
+                            spellcheck="false"
+                        />
+                        <button
+                            class="btn btn-primary btn-sm"
+                            id="configFolderAdd"
+                        >
+                            Add
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ignore tab -->
+                <div
+                    class="config-panel"
+                    id="configIgnore"
+                    style="display: none"
+                >
+                    <p class="config-hint">
+                        Glob patterns (e.g. <code>**/node_modules/**</code>,
+                        <code>**/*.draft.md</code>,
+                        <code>docs/private/**</code>)
+                    </p>
+                    <div class="config-list" id="configIgnoreList"></div>
+                    <div class="config-add-row">
+                        <input
+                            class="modal-input"
+                            id="configIgnoreInput"
+                            type="text"
+                            placeholder="**/folder/** or **/*.pattern.md"
+                            spellcheck="false"
+                        />
+                        <button
+                            class="btn btn-primary btn-sm"
+                            id="configIgnoreAdd"
+                        >
+                            Add
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

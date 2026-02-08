@@ -5,10 +5,16 @@ const fs = require("node:fs/promises");
 const http = require("node:http");
 const express = require("express");
 const { WebSocketServer } = require("ws");
-const { createWatcher } = require("./watcher");
+const { createWatcher, createConfigWatcher } = require("./watcher");
 const config = require("./config");
 
 const watchers = new Map();
+let configWatcher = null;
+
+/* ── Logging ───────────────────────────────────────────────────────── */
+
+const DEBUG = process.env.PEEKMD_DEBUG === "1";
+const log = DEBUG ? (...args) => console.log(...args) : () => {};
 
 /* ── Utilities ─────────────────────────────────────────────────────── */
 
@@ -17,11 +23,13 @@ async function scanMarkdown(dir, root = dir) {
     try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
         for (const e of entries) {
+            if (e.name.startsWith(".") || e.name === "node_modules") continue;
             const full = path.join(dir, e.name);
+            const rel = path.relative(root, full);
+            if (config.isIgnored(rel)) continue;
             if (e.isDirectory())
                 results.push(...(await scanMarkdown(full, root)));
-            else if (e.name.endsWith(".md"))
-                results.push(path.relative(root, full));
+            else if (e.name.endsWith(".md")) results.push(rel);
         }
     } catch {}
     return results.sort();
@@ -29,23 +37,68 @@ async function scanMarkdown(dir, root = dir) {
 
 function broadcast(wss, data) {
     const msg = JSON.stringify(data);
+    log("[broadcast]", data.type, data.path || "");
     for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
 }
 
 function startWatcher(folder, wss) {
-    if (!watchers.has(folder))
+    if (!watchers.has(folder)) {
+        log("[server] Starting watcher for:", folder);
         watchers.set(
             folder,
-            createWatcher(folder, (d) => broadcast(wss, d)),
+            createWatcher(folder, (d) => broadcast(wss, d), log),
         );
+    }
 }
 
 function stopWatcher(folder) {
     const w = watchers.get(folder);
     if (w) {
+        log("[server] Stopping watcher for:", folder);
         w.close();
         watchers.delete(folder);
     }
+}
+
+function restartAllWatchers(wss) {
+    log("[server] Restarting all watchers...");
+    for (const [folder, w] of watchers) {
+        w.close();
+    }
+    watchers.clear();
+    config.clearGlobCache();
+    for (const folder of config.getFolders()) {
+        startWatcher(folder, wss);
+    }
+}
+
+/**
+ * Sync watchers with the current config.
+ * Starts watchers for new folders, stops watchers for removed folders.
+ */
+function syncWatchers(wss, extraDirs = []) {
+    const currentFolders = new Set(watchers.keys());
+    const configFolders = config.getFolders();
+    const allFolders = [...configFolders];
+    for (const d of extraDirs) if (!allFolders.includes(d)) allFolders.push(d);
+    const targetFolders = new Set(allFolders);
+
+    // Stop watchers for removed folders
+    for (const folder of currentFolders) {
+        if (!targetFolders.has(folder)) {
+            stopWatcher(folder);
+        }
+    }
+
+    // Start watchers for new folders
+    for (const folder of targetFolders) {
+        if (!currentFolders.has(folder)) {
+            startWatcher(folder, wss);
+        }
+    }
+
+    // Clear glob cache to pick up new ignore patterns
+    config.clearGlobCache();
 }
 
 async function searchFiles(folders, query) {
@@ -73,6 +126,8 @@ async function searchFiles(folders, query) {
 /* ── Server ────────────────────────────────────────────────────────── */
 
 async function createServer({ port, extraDirs = [] }) {
+    config.ensureDefaults();
+
     const app = express();
     const server = http.createServer(app);
     const wss = new WebSocketServer({ server });
@@ -174,8 +229,69 @@ async function createServer({ port, extraDirs = [] }) {
         res.json(await searchFiles(getAllFolders(), q));
     });
 
+    /* ── Ignore routes ─────────────────────────────────────────────── */
+
+    app.get("/api/ignore", (_req, res) => {
+        res.json(config.getIgnorePatterns());
+    });
+
+    app.post("/api/ignore", (req, res) => {
+        const { pattern } = req.body;
+        if (!pattern)
+            return res.status(400).json({ error: "pattern required" });
+        const result = config.addIgnorePattern(pattern);
+        if (result.added) {
+            restartAllWatchers(wss);
+            broadcast(wss, { type: "folders-changed" });
+        }
+        res.json(result);
+    });
+
+    app.post("/api/unignore", (req, res) => {
+        const { pattern } = req.body;
+        if (!pattern)
+            return res.status(400).json({ error: "pattern required" });
+        const result = config.removeIgnorePattern(pattern);
+        if (result.removed) {
+            restartAllWatchers(wss);
+            broadcast(wss, { type: "folders-changed" });
+        }
+        res.json(result);
+    });
+
+    /* ── Start watchers ────────────────────────────────────────────── */
+
     for (const folder of getAllFolders()) startWatcher(folder, wss);
+
+    // Watch config file for external changes (e.g., CLI commands)
+    configWatcher = createConfigWatcher(() => {
+        log(
+            "[server] Config changed, syncing watchers and notifying clients...",
+        );
+        syncWatchers(wss, extraDirs);
+        broadcast(wss, { type: "folders-changed" });
+    }, log);
+
+    log("[server] Server starting on port", port);
     return new Promise((resolve) => server.listen(port, resolve));
 }
 
-module.exports = { createServer };
+/* ── CLI helpers (used by bin/peekmd.js for AI-agent commands) ──── */
+
+async function searchCli(folders, query) {
+    config.ensureDefaults();
+    return searchFiles(folders, query);
+}
+
+async function listFilesCli(folders) {
+    config.ensureDefaults();
+    const result = [];
+    const names = config.getDisplayNames(folders);
+    for (let i = 0; i < folders.length; i++) {
+        const files = await scanMarkdown(folders[i]);
+        result.push({ folder: folders[i], name: names[i], files });
+    }
+    return result;
+}
+
+module.exports = { createServer, searchCli, listFilesCli };

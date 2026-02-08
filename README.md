@@ -1,63 +1,102 @@
 # PeekMD
 
-A CLI tool that renders Markdown files in the browser. Point it at any directory, it starts a local server, opens a two-panel viewer, and live-reloads on every file save.
+A CLI tool that renders Markdown files in the browser and live-reloads on every file save.
 
 ## Install
 
-```
+```bash
 npm install -g peekmd
 ```
 
 Requires Node.js 18+.
 
-## Commands
-
-### Server
+## CLI Commands
 
 ```bash
-peekmd start ./docs        # start server with ./docs
-peekmd start               # start server with linked folders
-peekmd stop                # stop server
-peekmd status              # check server status
-PORT=3000 peekmd start     # custom port (default: 4000)
+# Server
+peekmd start                        # start server (daemon)
+peekmd stop                         # stop server
+peekmd status                       # check server status
+PORT=3000 peekmd start              # custom port (default: 4000)
+
+# Folder management
+peekmd link <dir> [dir2] ...        # persist folders to config
+peekmd unlink <dir> [dir2] ...      # remove folders from config
+peekmd list                         # show linked folders
+
+# Ignore patterns (glob syntax)
+peekmd ignore <pattern> ...         # ignore folders/files by glob pattern
+peekmd unignore <pattern> ...       # remove an ignore pattern
+peekmd ignored                      # show all active ignore patterns
+
+# Structured Output - making it easy to integrate with scripts or other tools.
+peekmd list --json                  # linked folders as JSON
+peekmd ignored --json               # ignore patterns as JSON
+peekmd status --json                # server status as JSON
+peekmd search <query>               # search files and content (JSON)
+peekmd files                        # list all markdown files (JSON)
+
+peekmd --help                       # print help
 ```
 
-Server runs as a daemon. One instance per system. Browser opens automatically on start.
+### Ignore Patterns
 
-### Folder Management
+Ignore patterns let you exclude folders or files from the file tree, search,
+and live-reload. Patterns are stored in `~/.peekmd.json` and apply globally.
+All patterns use **glob syntax** (picomatch).
+
+**Examples:**
 
 ```bash
-peekmd link ./docs         # persist folder to config
-peekmd link ./docs ./wiki  # link multiple folders
-peekmd unlink ./docs       # remove from config
-peekmd list                # show linked folders
-peekmd --help              # print help
+peekmd ignore "**/node_modules/**"    # ignores all node_modules folders
+peekmd ignore "**/dist/**" "**/build/**"  # ignore multiple patterns
+peekmd ignore "**/*.draft.md"         # ignores all .draft.md files
+peekmd ignore "docs/private/**"       # ignores everything under docs/private
+peekmd ignore "*.tmp"                 # ignores .tmp files at any depth
 ```
 
-These commands modify `~/.peekmd.json`. Changes take effect on next server start.
+**Default patterns** (applied automatically on first use):
+
+- `**/node_modules/**`
+- `**/.git/**`
+- `**/dist/**`
+- `**/build/**`
+- `**/.next/**`
+- `**/__pycache__/**`
 
 ## Features
 
-| Feature            | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| Live Reload        | File changes pushed to browser via WebSocket on every save.     |
-| Mermaid Diagrams   | Renders flowcharts, sequence diagrams, and more client-side.    |
-| GFM Markdown       | Tables, task lists, code blocks, blockquotes, and more.         |
-| File Tree          | Collapsible sidebar with persistent expand/collapse state.      |
-| Multi-folder       | Serve multiple directories at once.                             |
-| Full-text Search   | Search across file content and filenames.                       |
-| Dark / Light Theme | Toggle with browser persistence.                                |
-| Daemon Mode        | Runs in background. Start, stop, and check status from the CLI. |
-| Browser Launch     | Opens default browser on start.                                 |
+| Feature                      |                                                                                                                      Summary | Why it matters                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------: | ------------------------------------------------------------------- |
+| Live reload                  |                                Real-time file events over WebSocket; open file preview refreshes on `add`/`change`/`unlink`. | Instant feedback while editing files.                               |
+| Folder groups (multi-folder) | Sidebar shows each linked folder as a separate group; when folder basenames collide a compact path is shown to disambiguate. | Keep multiple projects side-by-side without confusion.              |
+| File tree                    |                        Per-folder collapsible file tree with relative paths; click a file to render Markdown in the preview. | Fast navigation and focused previews.                               |
+| Ignore patterns (glob)       |                                                         Glob-only patterns (picomatch) applied to watcher, search, and tree. | Simple, consistent filtering across the app. Quote globs in shells. |
+| Search                       |                                                   Lightweight full-text substring search across filenames and file contents. | Fast, low-overhead lookup for most small/medium projects.           |
+| Markdown + Mermaid           |                                                        Renders GFM and client-side Mermaid diagrams inside `mermaid` fences. | Rich previews without server-side rendering.                        |
+| Daemon & CLI                 |                                              Start/stop/status plus `--json` machine-readable output for scripts and agents. | Integrates with workflows and automation.                           |
+| Theming & UX                 |                         Light/dark themes, instant floating tooltips appended to `body`, compact path badges for long names. | Tooltips avoid clipping; UI scales to longer path.                  |
+
+### Limitations
+
+- Ignore patterns are glob-only (picomatch). Regex/exact-name modes are not supported.
+- Search is intentionally simple (substring per-line) for clarity and low resource usage.
+- Initial scan of very large directories may take noticeable time; prefer linking smaller subfolders if needed.
 
 ## Config
 
+Linked folders and ignore patterns are stored in:
+
 ```
 ~/.peekmd.json
+
 ```
 
-Stores absolute folder paths. Created on first `peekmd link`. Human-editable.
+```json
+{
+    "folders": ["/Users/you/docs", "/Users/you/notes"],
+    "ignore": ["**/node_modules/**", "**/dist/**", "**/*.draft.md"]
+}
+```
 
-## License
-
-MIT
+Created automatically on first use. Can be edited manually.

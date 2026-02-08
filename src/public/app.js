@@ -5,6 +5,8 @@
 let activeFolderPath = null;
 let activeFilePath = null;
 const collapsedNodes = new Set();
+// map folder path -> compact display (used when basenames collide)
+let folderDisplayMap = {};
 
 /* ── Icons ─────────────────────────────────────────────────────────── */
 
@@ -146,6 +148,27 @@ const api = {
         const r = await fetch("/api/search?" + new URLSearchParams({ q }));
         return r.ok ? r.json() : [];
     },
+    async getIgnorePatterns() {
+        return (await fetch("/api/ignore")).json();
+    },
+    async addIgnore(pattern) {
+        return (
+            await fetch("/api/ignore", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pattern }),
+            })
+        ).json();
+    },
+    async removeIgnore(pattern) {
+        return (
+            await fetch("/api/unignore", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pattern }),
+            })
+        ).json();
+    },
 };
 
 /* ── Search ────────────────────────────────────────────────────────── */
@@ -256,13 +279,16 @@ function renderTree(tree, folder, prefix, depth) {
                     activeFolderPath === folder && activeFilePath === fullPath
                         ? " active"
                         : "";
-                return `<div class="file-item${active}" data-folder="${folder}" data-path="${fullPath}" style="padding-left:${14 + depth * 16}px">${ICONS.file} ${name}</div>`;
+                const badge = folderDisplayMap[folder]
+                    ? `<span class="file-badge">${escapeHtml(folderDisplayMap[folder])}</span>`
+                    : "";
+                return `<div class="file-item${active}" data-folder="${escapeHtml(folder)}" data-path="${escapeHtml(fullPath)}" style="padding-left:${14 + depth * 16}px" data-tip="${escapeHtml(fullPath)}">${ICONS.file} ${badge} ${escapeHtml(name)}</div>`;
             }
 
             const key = folder + ":" + fullPath;
             const collapsed = collapsedNodes.has(key) ? " collapsed" : "";
-            return `<div class="tree-dir${collapsed}" data-node-key="${key}">
-            <div class="tree-dir-header" style="padding-left:${10 + depth * 16}px">${ICONS.treeChevron} ${ICONS.treeFolder} <span>${name}</span></div>
+            return `<div class="tree-dir${collapsed}" data-node-key="${escapeHtml(key)}">
+            <div class="tree-dir-header" style="padding-left:${10 + depth * 16}px" data-tip="${escapeHtml(fullPath)}">${ICONS.treeChevron} ${ICONS.treeFolder} <span>${escapeHtml(name)}</span></div>
             <div class="tree-dir-children">${renderTree(tree[name], folder, fullPath, depth + 1)}</div>
         </div>`;
         })
@@ -278,6 +304,19 @@ async function refreshSidebar() {
         return;
     }
 
+    // compute display map for folders with colliding basenames
+    const nameCounts = {};
+    for (const g of groups) nameCounts[g.name] = (nameCounts[g.name] || 0) + 1;
+    folderDisplayMap = {};
+    const shortPath = (p) => {
+        const parts = p.split(/\\/|\//).filter(Boolean);
+        if (parts.length <= 2) return parts.join("/");
+        return "…/" + parts.slice(-2).join("/");
+    };
+    for (const g of groups) {
+        folderDisplayMap[g.folder] = nameCounts[g.name] > 1 ? shortPath(g.folder) : "";
+    }
+
     list.innerHTML = groups
         .map((g) => {
             const collapsed = collapsedNodes.has("root:" + g.folder)
@@ -287,10 +326,14 @@ async function refreshSidebar() {
                 ? renderTree(buildTree(g.files), g.folder, "", 0)
                 : '<div class="file-item" style="opacity:.4;cursor:default;">No .md files</div>';
 
-            return `<div class="folder-group${collapsed}" data-folder="${g.folder}">
+            const compact = folderDisplayMap[g.folder]
+                ? `<span class="folder-path-compact">${escapeHtml(folderDisplayMap[g.folder])}</span>`
+                : "";
+
+            return `<div class="folder-group${collapsed}" data-folder="${escapeHtml(g.folder)}">
             <div class="folder-header">
-                <div class="folder-label">${ICONS.folder} <span title="${g.folder}">${g.name}</span></div>
-                <button class="folder-unlink" data-unlink="${g.folder}" title="Unlink folder">${ICONS.unlink}</button>
+                <div class="folder-label">${ICONS.folder} <div class="folder-label-text"><span class="folder-name" title="${escapeHtml(g.folder)}">${escapeHtml(g.name)}</span>${compact}</div></div>
+                <button class="folder-unlink" data-unlink="${escapeHtml(g.folder)}" data-tip="Unlink folder">${ICONS.unlink}</button>
                 ${ICONS.chevron}
             </div>
             <div class="folder-files">${files}</div>
@@ -426,45 +469,225 @@ function initModal() {
     }
 }
 
+/* ── Config Panel ──────────────────────────────────────────────────── */
+
+function initConfigPanel() {
+    const overlay = document.getElementById("configOverlay");
+    const tabs = overlay.querySelectorAll(".config-tab");
+    const foldersPanel = document.getElementById("configFolders");
+    const ignorePanel = document.getElementById("configIgnore");
+
+    const open = () => {
+        overlay.classList.add("open");
+        loadFolders();
+        loadIgnore();
+    };
+    const close = () => overlay.classList.remove("open");
+
+    document.getElementById("configBtn").addEventListener("click", open);
+    document.getElementById("configClose").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) close();
+    });
+
+    /* tabs */
+    tabs.forEach((tab) =>
+        tab.addEventListener("click", () => {
+            tabs.forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+            foldersPanel.style.display =
+                tab.dataset.tab === "folders" ? "" : "none";
+            ignorePanel.style.display =
+                tab.dataset.tab === "ignore" ? "" : "none";
+        }),
+    );
+
+    /* ── Folders ── */
+
+    async function loadFolders() {
+        const groups = await api.folders();
+        const list = document.getElementById("configFolderList");
+        if (!groups.length) {
+            list.innerHTML =
+                '<div class="config-empty">No folders linked</div>';
+            return;
+        }
+        list.innerHTML = groups
+            .map(
+                (g) =>
+                    `<div class="config-item">
+                        <div class="config-item-info">
+                            <div class="config-item-meta" title="${escapeHtml(g.folder)}">
+                                <span class="config-item-name">${escapeHtml(g.name)}</span>
+                                <span class="config-item-detail">${escapeHtml(g.folder)}</span>
+                            </div>
+                        </div>
+                        <button class="config-remove" data-folder="${escapeHtml(g.folder)}" data-tip="Unlink">${ICONS.unlink}</button>
+                    </div>`,
+            )
+            .join("");
+
+        list.querySelectorAll(".config-remove[data-folder]").forEach((btn) =>
+            btn.addEventListener("click", async () => {
+                await api.unlink(btn.dataset.folder);
+                if (activeFolderPath === btn.dataset.folder) {
+                    activeFolderPath = activeFilePath = null;
+                    document.getElementById("markdownBody").innerHTML =
+                        '<div class="empty-state">Select a file to preview</div>';
+                }
+                loadFolders();
+                refreshSidebar();
+            }),
+        );
+    }
+
+    const folderInput = document.getElementById("configFolderInput");
+    document
+        .getElementById("configFolderAdd")
+        .addEventListener("click", async () => {
+            const val = folderInput.value.trim();
+            if (!val) return;
+            const r = await api.link(val);
+            if (r.error) {
+                folderInput.style.borderColor = "var(--danger)";
+                setTimeout(() => (folderInput.style.borderColor = ""), 1200);
+                return;
+            }
+            folderInput.value = "";
+            loadFolders();
+            refreshSidebar();
+        });
+    folderInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter")
+            document.getElementById("configFolderAdd").click();
+    });
+
+    /* ── Ignore Patterns ── */
+
+    async function loadIgnore() {
+        const patterns = await api.getIgnorePatterns();
+        const list = document.getElementById("configIgnoreList");
+        if (!patterns.length) {
+            list.innerHTML =
+                '<div class="config-empty">No ignore patterns</div>';
+            return;
+        }
+        list.innerHTML = patterns
+            .map((p) => {
+                return `<div class="config-item">
+                    <div class="config-item-info" title="${escapeHtml(p)}">
+                        <span class="config-item-name"><code>${escapeHtml(p)}</code></span>
+                        <span class="config-badge config-badge-glob">glob</span>
+                    </div>
+                    <button class="config-remove" data-pattern="${escapeHtml(p)}" data-tip="Remove">${ICONS.unlink}</button>
+                </div>`;
+            })
+            .join("");
+
+        list.querySelectorAll(".config-remove[data-pattern]").forEach((btn) =>
+            btn.addEventListener("click", async () => {
+                await api.removeIgnore(btn.dataset.pattern);
+                loadIgnore();
+                refreshSidebar();
+            }),
+        );
+    }
+
+    const ignoreInput = document.getElementById("configIgnoreInput");
+    document
+        .getElementById("configIgnoreAdd")
+        .addEventListener("click", async () => {
+            const val = ignoreInput.value.trim();
+            if (!val) return;
+            const r = await api.addIgnore(val);
+            if (!r.added && !r.error) {
+                ignoreInput.style.borderColor = "var(--accent)";
+                setTimeout(() => (ignoreInput.style.borderColor = ""), 1200);
+            }
+            ignoreInput.value = "";
+            loadIgnore();
+            refreshSidebar();
+        });
+    ignoreInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter")
+            document.getElementById("configIgnoreAdd").click();
+    });
+}
+
 /* ── WebSocket ─────────────────────────────────────────────────────── */
 
 function initWS() {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const statusEl = document.getElementById("connectionStatus");
     let retryDelay = 500;
+
+    function setConnected(connected) {
+        if (connected) {
+            statusEl.classList.add("connected");
+            statusEl.dataset.tip = "Live reload connected";
+        } else {
+            statusEl.classList.remove("connected");
+            statusEl.dataset.tip = "Disconnected - reconnecting...";
+        }
+    }
 
     function connect() {
         const ws = new WebSocket(`${proto}//${location.host}`);
 
         ws.addEventListener("open", () => {
             retryDelay = 500;
+            setConnected(true);
+            // Refresh sidebar on reconnect to sync any changes made while disconnected
+            refreshSidebar();
+        });
+
+        ws.addEventListener("close", () => {
+            setConnected(false);
+            setTimeout(connect, retryDelay);
+            retryDelay = Math.min(retryDelay * 2, 5000);
+        });
+
+        ws.addEventListener("error", () => {
+            setConnected(false);
         });
 
         ws.addEventListener("message", async (e) => {
             const msg = JSON.parse(e.data);
+            console.log("[ws]", msg.type, msg.path || "");
 
             if (msg.type === "folders-changed") {
                 refreshSidebar();
                 return;
             }
+
+            /* sidebar always refreshes on add/unlink so new files appear */
+            if (msg.type === "add" || msg.type === "unlink") {
+                refreshSidebar();
+            }
+
             if (msg.folder !== activeFolderPath) return;
 
-            if (msg.type === "unlink" && msg.path === activeFilePath) {
+            /* normalize both paths for comparison */
+            const msgPath = (msg.path || "").replace(/\\/g, "/");
+            const curPath = (activeFilePath || "").replace(/\\/g, "/");
+
+            if (msg.type === "unlink" && msgPath === curPath) {
                 activeFilePath = null;
                 document.getElementById("markdownBody").innerHTML =
                     '<div class="empty-state">File deleted</div>';
-            } else if (msg.path === activeFilePath) {
+                return;
+            }
+
+            if (
+                msgPath === curPath &&
+                (msg.type === "change" || msg.type === "add")
+            ) {
                 const content = await api.file(
                     activeFolderPath,
                     activeFilePath,
                 );
                 if (content !== null) await renderMarkdown(content);
             }
-            refreshSidebar();
-        });
-
-        ws.addEventListener("close", () => {
-            setTimeout(connect, retryDelay);
-            retryDelay = Math.min(retryDelay * 2, 5000);
         });
     }
     connect();
@@ -477,9 +700,109 @@ document.addEventListener("DOMContentLoaded", () => {
     initTheme();
     initSearch();
     initModal();
+    initConfigPanel();
     initWS();
+    initTooltips();
     refreshSidebar();
     document
         .getElementById("refreshBtn")
-        .addEventListener("click", refreshSidebar);
+        .addEventListener("click", async () => {
+            refreshSidebar();
+            if (activeFolderPath && activeFilePath) {
+                const content = await api.file(
+                    activeFolderPath,
+                    activeFilePath,
+                );
+                if (content !== null) await renderMarkdown(content);
+            }
+        });
 });
+
+/* ── Tooltip Positioning ───────────────────────────────────────────── */
+
+function initTooltips() {
+    let tipNode = null;
+    let activeTarget = null;
+
+    function showTip(target) {
+        const text = target.getAttribute("data-tip");
+        if (!text) return;
+        if (!tipNode) {
+            tipNode = document.createElement("div");
+            tipNode.className = "floating-tooltip";
+            document.body.appendChild(tipNode);
+        }
+        tipNode.textContent = text;
+        tipNode.classList.add("show");
+        positionTip(target);
+        activeTarget = target;
+    }
+
+    function hideTip() {
+        if (!tipNode) return;
+        tipNode.classList.remove("show");
+        activeTarget = null;
+    }
+
+    function positionTip(target) {
+        if (!tipNode) return;
+        const rect = target.getBoundingClientRect();
+        const vw = Math.max(
+            document.documentElement.clientWidth,
+            window.innerWidth || 0,
+        );
+        const vh = Math.max(
+            document.documentElement.clientHeight,
+            window.innerHeight || 0,
+        );
+        const padding = 8;
+
+        // prefer showing above the element if there's space, otherwise below
+        tipNode.style.maxWidth = Math.min(420, vw - 40) + "px";
+
+        // reset positioning to measure natural size
+        tipNode.style.left = `0px`;
+        tipNode.style.top = `0px`;
+        tipNode.style.transform = `none`;
+        const trect = tipNode.getBoundingClientRect();
+
+        // center x above target, but clamp to viewport so tooltip doesn't overflow
+        let x = rect.left + rect.width / 2;
+        const half = trect.width / 2;
+        const minX = padding + half;
+        const maxX = vw - padding - half;
+        if (x < minX) x = minX;
+        if (x > maxX) x = maxX;
+        tipNode.style.left = `${x}px`;
+
+        // vertical placement: prefer below (bottom) if space, otherwise above; clamp to viewport
+        if (rect.bottom + trect.height + padding < vh) {
+            // below
+            let y = rect.bottom + 6;
+            if (y + trect.height > vh - padding)
+                y = vh - padding - trect.height;
+            tipNode.style.top = `${y}px`;
+            tipNode.style.transform = `translate(-50%, 0)`;
+        } else {
+            // above
+            let y = rect.top - 6;
+            if (y - trect.height < padding) y = padding + trect.height;
+            tipNode.style.top = `${y}px`;
+            tipNode.style.transform = `translate(-50%, -100%)`;
+        }
+    }
+
+    document.addEventListener("mouseover", (e) => {
+        const el = e.target.closest("[data-tip]");
+        if (el) showTip(el);
+    });
+    document.addEventListener("mouseout", (e) => {
+        const el = e.target.closest("[data-tip]");
+        if (!el) hideTip();
+    });
+    document.addEventListener("mousemove", (e) => {
+        if (!activeTarget) return;
+        // reposition while moving to better follow complex layouts
+        positionTip(activeTarget);
+    });
+}

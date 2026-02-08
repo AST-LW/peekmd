@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const picomatch = require("picomatch");
 
 const CONFIG_PATH = path.join(require("node:os").homedir(), ".peekmd.json");
 
@@ -57,10 +58,86 @@ function getDisplayNames(folders) {
     });
 }
 
+/* ── Ignore patterns ───────────────────────────────────────────────── */
+
+const DEFAULT_IGNORE = [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/__pycache__/**",
+];
+
+function ensureDefaults() {
+    const data = read();
+    if (!data.ignore) {
+        data.ignore = [...DEFAULT_IGNORE];
+        write(data);
+    }
+}
+
+function getIgnorePatterns() {
+    return read().ignore || DEFAULT_IGNORE;
+}
+
+function addIgnorePattern(pattern) {
+    const data = read();
+    if (!data.ignore) data.ignore = [];
+    if (data.ignore.includes(pattern)) return { added: false, pattern };
+    data.ignore.push(pattern);
+    write(data);
+    clearGlobCache();
+    return { added: true, pattern };
+}
+
+function removeIgnorePattern(pattern) {
+    const data = read();
+    if (!data.ignore) return { removed: false, pattern };
+    const idx = data.ignore.indexOf(pattern);
+    if (idx === -1) return { removed: false, pattern };
+    data.ignore.splice(idx, 1);
+    write(data);
+    clearGlobCache();
+    return { removed: true, pattern };
+}
+
+/* pre-compiled glob cache so we don't re-parse every call */
+const _globCache = new Map();
+
+function clearGlobCache() {
+    _globCache.clear();
+}
+
+function getGlobMatcher(pattern) {
+    if (!_globCache.has(pattern)) {
+        _globCache.set(pattern, picomatch(pattern, { dot: true }));
+    }
+    return _globCache.get(pattern);
+}
+
+/**
+ * Test whether a relative path should be ignored.
+ * All patterns are treated as glob patterns (picomatch syntax).
+ */
+function isIgnored(relPath) {
+    const patterns = getIgnorePatterns();
+    for (const p of patterns) {
+        if (getGlobMatcher(p)(relPath)) return true;
+    }
+    return false;
+}
+
 module.exports = {
     getFolders,
     linkFolder,
     unlinkFolder,
     getDisplayNames,
+    ensureDefaults,
+    getIgnorePatterns,
+    addIgnorePattern,
+    removeIgnorePattern,
+    isIgnored,
+    clearGlobCache,
     CONFIG_PATH,
 };
