@@ -309,12 +309,15 @@ async function refreshSidebar() {
     for (const g of groups) nameCounts[g.name] = (nameCounts[g.name] || 0) + 1;
     folderDisplayMap = {};
     const shortPath = (p) => {
-        const parts = p.split(/\\/|\//).filter(Boolean);
+        if (!p) return "";
+        const parts = p.split(/[\\/]+/).filter(Boolean);
         if (parts.length <= 2) return parts.join("/");
         return "…/" + parts.slice(-2).join("/");
     };
+
     for (const g of groups) {
-        folderDisplayMap[g.folder] = nameCounts[g.name] > 1 ? shortPath(g.folder) : "";
+        folderDisplayMap[g.folder] =
+            nameCounts[g.name] > 1 ? shortPath(g.folder) : "";
     }
 
     list.innerHTML = groups
