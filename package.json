@@ -1,9 +1,18 @@
 {
-    "name": "peekmd",
-    "version": "1.0.0",
+    "name": "@astlw/peekmd",
+    "version": "1.0.1",
     "description": "A CLI tool that renders Markdown files in the browser and live-reloads on every file save.",
-    "author": "",
+    "author": "AST-LW",
     "license": "MIT",
+    "private": false,
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/AST-LW/peekmd.git"
+    },
+    "homepage": "https://github.com/AST-LW/peekmd#readme",
+    "bugs": {
+        "url": "https://github.com/AST-LW/peekmd/issues"
+    },
     "bin": {
         "peekmd": "./bin/peekmd.js"
     },
@@ -17,14 +26,13 @@
     },
     "keywords": [
         "markdown",
-        "preview",
+        "markdown-server",
+        "markdown-preview",
         "mermaid",
-        "diagrams",
         "cli",
         "viewer",
         "documentation",
-        "live-reload",
-        "dark-theme"
+        "live-reload"
     ],
     "dependencies": {
         "chokidar": "^3.6.0",

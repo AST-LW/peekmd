@@ -77,35 +77,30 @@ const HELP = `
   peekmd — Preview Markdown files in the browser
 
   Server:
-    peekmd start [dir] [dir2] ...   Start server (daemon)
-    peekmd stop                     Stop server
-    peekmd status                   Check if server is running
+    peekmd start                        Start server (daemon)
+    peekmd stop                         Stop server
+    peekmd status                       Check server status
+    PORT=3000 peekmd start              Custom port (default: 4000)
 
   Folders:
-    peekmd link <dir> [dir2] ...    Link folders for persistent tracking
-    peekmd unlink <dir> [dir2] ...  Remove folders from tracking
-    peekmd list                     Show all linked folders
+    peekmd link <dir> [dir2] ...        Persist folders to config
+    peekmd unlink <dir> [dir2] ...      Remove folders from config
+    peekmd list                         Show linked folders
 
   Ignore:
-    peekmd ignore <pattern> ...     Ignore folders/files by glob pattern
-    peekmd unignore <pattern> ...   Remove an ignore pattern
-    peekmd ignored                  Show all active ignore patterns
+    peekmd ignore <pattern> ...         Ignore folders/files by glob pattern
+    peekmd unignore <pattern> ...       Remove an ignore pattern
+    peekmd ignored                      Show all active ignore patterns
 
-  Glob Pattern Examples:
-    **/node_modules/**              Ignore all node_modules folders
-    **/*.draft.md                   Ignore all .draft.md files
-    docs/private/**                 Ignore everything under docs/private
-    *.tmp                           Ignore .tmp files at any depth
-
-  AI / Machine-readable output:
-    peekmd list --json              Linked folders as JSON
-    peekmd ignored --json           Ignore patterns as JSON
-    peekmd status --json            Server status as JSON
-    peekmd search <query>           Search files and content (JSON)
-    peekmd files                    List all markdown files (JSON)
+  Structured Output:
+    peekmd list --json                  Linked folders as JSON
+    peekmd ignored --json               Ignore patterns as JSON
+    peekmd status --json                Server status as JSON
+    peekmd search <query>               Search files and content (JSON)
+    peekmd files                        List all markdown files (JSON)
 
   Other:
-    peekmd --help                   Show this help
+    peekmd --help                       Show this help
 
   Environment:
     PORT=<number>    Server port (default: 4000)

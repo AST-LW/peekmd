@@ -10,6 +10,18 @@ npm install -g peekmd
 
 Requires Node.js 18+.
 
+## Features
+
+| Feature                      | Summary                                                                                                                      | Why it matters                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Live reload                  | Real-time file events over WebSocket; open file preview refreshes on `add`/`change`/`unlink`.                                | Instant feedback while editing files.                               |
+| Folder groups (multi-folder) | Sidebar shows each linked folder as a separate group; when folder basenames collide a compact path is shown to disambiguate. | Keep multiple projects side-by-side without confusion.              |
+| File tree                    | Per-folder collapsible file tree with relative paths; click a file to render Markdown in the preview.                        | Fast navigation and focused previews.                               |
+| Ignore patterns (glob)       | Glob-only patterns (picomatch) applied to watcher, search, and tree.                                                         | Simple, consistent filtering across the app. Quote globs in shells. |
+| Search                       | Lightweight full-text substring search across filenames and file contents.                                                   | Fast, low-overhead lookup for most small/medium projects.           |
+| Markdown + Mermaid           | Renders GFM and client-side Mermaid diagrams inside `mermaid` fences.                                                        | Rich previews without server-side rendering.                        |
+| Daemon & CLI                 | Start/stop/status plus `--json` machine-readable output for scripts and agents.                                              | Integrates with workflows and automation.                           |
+
 ## CLI Commands
 
 ```bash
@@ -41,47 +53,44 @@ peekmd --help                       # print help
 
 ### Ignore Patterns
 
-Ignore patterns let you exclude folders or files from the file tree, search,
-and live-reload. Patterns are stored in `~/.peekmd.json` and apply globally.
-All patterns use **glob syntax** (picomatch).
+Ignore patterns let you exclude folders or files from the file tree, search, and live-reload.
+Patterns are stored in `~/.peekmd.json` and apply globally.
+All patterns use glob syntax (picomatch).
 
-**Examples:**
+Examples:
 
 ```bash
-peekmd ignore "**/node_modules/**"    # ignores all node_modules folders
-peekmd ignore "**/dist/**" "**/build/**"  # ignore multiple patterns
-peekmd ignore "**/*.draft.md"         # ignores all .draft.md files
-peekmd ignore "docs/private/**"       # ignores everything under docs/private
-peekmd ignore "*.tmp"                 # ignores .tmp files at any depth
+peekmd ignore "**/node_modules/**"         # ignores all node_modules folders
+peekmd ignore "**/dist/**" "**/build/**"   # ignore multiple patterns
+peekmd ignore "**/*.draft.md"              # ignores all .draft.md files
+peekmd ignore "docs/private/**"            # ignores everything under docs/private
+peekmd ignore "*.tmp"                      # ignores .tmp files at any depth
 ```
 
-**Default patterns** (applied automatically on first use):
+#### How they work:
 
-- `**/node_modules/**`
-- `**/.git/**`
-- `**/dist/**`
-- `**/build/**`
-- `**/.next/**`
-- `**/__pycache__/**`
+Ignore patterns are global and applied to every linked folder. Each pattern is tested against the file path **relative to that folder’s root**.
 
-## Features
+| Linked Folder        | File Path                              | Relative Path               | Pattern              | Matches |
+| -------------------- | -------------------------------------- | --------------------------- | -------------------- | ------- |
+| `/Users/you/project` | `/Users/you/project/docs/private/a.md` | `docs/private/a.md`         | `docs/private/**`    | ✅ Yes  |
+| `/Users/you/project` | `/Users/you/project/README.md`         | `README.md`                 | `docs/private/**`    | ❌ No   |
+| `/Users/you`         | `/Users/you/project/docs/private/a.md` | `project/docs/private/a.md` | `docs/private/**`    | ❌ No   |
+| `/Users/you`         | `/Users/you/project/docs/private/a.md` | `project/docs/private/a.md` | `**/docs/private/**` | ✅ Yes  |
+| `/Users/you/project` | `/Users/you/project/build/tmp.log`     | `build/tmp.log`             | `**/build/**`        | ✅ Yes  |
+| `/Users/you/project` | `/Users/you/project/src/file.draft.md` | `src/file.draft.md`         | `**/*.draft.md`      | ✅ Yes  |
+| `/Users/you/project` | `/Users/you/project/foo.tmp`           | `foo.tmp`                   | `**/*.tmp`           | ✅ Yes  |
 
-| Feature                      |                                                                                                                      Summary | Why it matters                                                      |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------: | ------------------------------------------------------------------- |
-| Live reload                  |                                Real-time file events over WebSocket; open file preview refreshes on `add`/`change`/`unlink`. | Instant feedback while editing files.                               |
-| Folder groups (multi-folder) | Sidebar shows each linked folder as a separate group; when folder basenames collide a compact path is shown to disambiguate. | Keep multiple projects side-by-side without confusion.              |
-| File tree                    |                        Per-folder collapsible file tree with relative paths; click a file to render Markdown in the preview. | Fast navigation and focused previews.                               |
-| Ignore patterns (glob)       |                                                         Glob-only patterns (picomatch) applied to watcher, search, and tree. | Simple, consistent filtering across the app. Quote globs in shells. |
-| Search                       |                                                   Lightweight full-text substring search across filenames and file contents. | Fast, low-overhead lookup for most small/medium projects.           |
-| Markdown + Mermaid           |                                                        Renders GFM and client-side Mermaid diagrams inside `mermaid` fences. | Rich previews without server-side rendering.                        |
-| Daemon & CLI                 |                                              Start/stop/status plus `--json` machine-readable output for scripts and agents. | Integrates with workflows and automation.                           |
-| Theming & UX                 |                         Light/dark themes, instant floating tooltips appended to `body`, compact path badges for long names. | Tooltips avoid clipping; UI scales to longer path.                  |
+#### Default patterns (applied automatically on first use):
 
-### Limitations
-
-- Ignore patterns are glob-only (picomatch). Regex/exact-name modes are not supported.
-- Search is intentionally simple (substring per-line) for clarity and low resource usage.
-- Initial scan of very large directories may take noticeable time; prefer linking smaller subfolders if needed.
+```
+**/node_modules/**
+**/.git/**
+**/dist/**
+**/build/**
+**/.next/**
+**/__pycache__/**
+```
 
 ## Config
 
@@ -100,3 +109,8 @@ Linked folders and ignore patterns are stored in:
 ```
 
 Created automatically on first use. Can be edited manually.
+
+### NOTE
+
+- Ignore patterns are glob-only (picomatch). Regex/exact-name modes are not supported.
+- Search is intentionally simple (substring per-line) for clarity and low resource usage.
