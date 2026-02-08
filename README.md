@@ -5,7 +5,7 @@ A CLI tool that renders Markdown files in the browser and live-reloads on every 
 ## Install
 
 ```bash
-npm install -g peekmd
+npm i -g @astlw/peekmd
 ```
 
 Requires Node.js 18+.
@@ -21,6 +21,23 @@ Requires Node.js 18+.
 | Search                       | Lightweight full-text substring search across filenames and file contents.                                                   | Fast, low-overhead lookup for most small/medium projects.           |
 | Markdown + Mermaid           | Renders GFM and client-side Mermaid diagrams inside `mermaid` fences.                                                        | Rich previews without server-side rendering.                        |
 | Daemon & CLI                 | Start/stop/status plus `--json` machine-readable output for scripts and agents.                                              | Integrates with workflows and automation.                           |
+
+## Config
+
+Linked folders and ignore patterns are stored in:
+
+```
+~/.peekmd.json
+```
+
+```json
+{
+    "folders": ["/Users/you/docs", "/Users/you/notes"],
+    "ignore": ["**/node_modules/**", "**/dist/**", "**/*.draft.md"]
+}
+```
+
+Created automatically on first use. Can be edited manually.
 
 ## CLI Commands
 
@@ -41,7 +58,7 @@ peekmd ignore <pattern> ...         # ignore folders/files by glob pattern
 peekmd unignore <pattern> ...       # remove an ignore pattern
 peekmd ignored                      # show all active ignore patterns
 
-# Structured Output - making it easy to integrate with scripts or other tools.
+# Structured Output (Useful for integrating with scripts or other tools)
 peekmd list --json                  # linked folders as JSON
 peekmd ignored --json               # ignore patterns as JSON
 peekmd status --json                # server status as JSON
@@ -91,24 +108,6 @@ Ignore patterns are global and applied to every linked folder. Each pattern is t
 **/.next/**
 **/__pycache__/**
 ```
-
-## Config
-
-Linked folders and ignore patterns are stored in:
-
-```
-~/.peekmd.json
-
-```
-
-```json
-{
-    "folders": ["/Users/you/docs", "/Users/you/notes"],
-    "ignore": ["**/node_modules/**", "**/dist/**", "**/*.draft.md"]
-}
-```
-
-Created automatically on first use. Can be edited manually.
 
 ### NOTE
 
