@@ -1,6 +1,6 @@
 {
     "name": "@astlw/peekmd",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "A CLI tool that renders Markdown files in the browser and live-reloads on every file save.",
     "author": "AST-LW",
     "license": "MIT",
