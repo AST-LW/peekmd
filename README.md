@@ -1,6 +1,24 @@
-# peek MD
+<div align="center">
 
-A CLI tool that renders Markdown files in the browser and live-reloads on every file save.
+<h3 style="
+  color: var(--accent);
+  font-weight: 900;
+  font-size: 64px;
+  margin: 0;
+">
+  peek MD
+</h3>
+
+<p style="
+  color: var(--text-muted);
+  font-size: 18px;
+  font-weight: 500;
+  margin-top: 8px;
+">
+  A CLI tool that renders Markdown files in the browser.
+</p>
+
+</div>
 
 ## Preview
 
@@ -103,7 +121,7 @@ Ignore patterns are global and applied to every linked folder. Each pattern is t
 | `/Users/you/project` | `/Users/you/project/src/file.draft.md` | `src/file.draft.md`         | `**/*.draft.md`      | ✅ Yes  |
 | `/Users/you/project` | `/Users/you/project/foo.tmp`           | `foo.tmp`                   | `**/*.tmp`           | ✅ Yes  |
 
-#### Default patterns (applied automatically on first use):
+#### Default patterns (applied automatically):
 
 ```
 **/node_modules/**
@@ -112,6 +130,7 @@ Ignore patterns are global and applied to every linked folder. Each pattern is t
 **/build/**
 **/.next/**
 **/__pycache__/**
+...
 ```
 
 ### NOTE
