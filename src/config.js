@@ -33,6 +33,7 @@ function linkFolder(dir) {
     if (data.folders.includes(abs)) return { added: false, path: abs };
     data.folders.push(abs);
     write(data);
+    clearGlobCache();
     return { added: true, path: abs };
 }
 
@@ -43,6 +44,7 @@ function unlinkFolder(dir) {
     if (idx === -1) return { removed: false, path: abs };
     data.folders.splice(idx, 1);
     write(data);
+    clearGlobCache();
     return { removed: true, path: abs };
 }
 
@@ -61,12 +63,51 @@ function getDisplayNames(folders) {
 /* ── Ignore patterns ───────────────────────────────────────────────── */
 
 const DEFAULT_IGNORE = [
+    // Node / JS
     "**/node_modules/**",
-    "**/.git/**",
     "**/dist/**",
     "**/build/**",
     "**/.next/**",
+
+    // Git
+    "**/.git/**",
+
+    // Python
     "**/__pycache__/**",
+    "**/*.pyc",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/env/**",
+    "**/.pytest_cache/**",
+    "**/.mypy_cache/**",
+
+    // Java / JVM
+    "**/target/**",
+    "**/*.class",
+    "**/*.jar",
+
+    // Rust / Cargo
+    "**/target/**",
+
+    // Go
+    "**/vendor/**",
+    "**/pkg/**",
+
+    // C / C++ / native artifacts
+    "**/*.o",
+    "**/*.so",
+    "**/*.dll",
+    "**/*.exe",
+
+    // IDE / editor caches
+    "**/.idea/**",
+    "**/.vscode/**",
+    "**/.cache/**",
+
+    // Misc / build systems
+    "**/.gradle/**",
+    "**/__pycache__/**",
+    "**/.tox/**",
 ];
 
 function ensureDefaults() {
@@ -78,7 +119,9 @@ function ensureDefaults() {
 }
 
 function getIgnorePatterns() {
-    return read().ignore || DEFAULT_IGNORE;
+    const data = read();
+    const user = data.ignore || [];
+    return [...DEFAULT_IGNORE, ...user];
 }
 
 function addIgnorePattern(pattern) {

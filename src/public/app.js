@@ -148,6 +148,70 @@ async function renderMarkdown(raw) {
             }
         });
     });
+
+    // Handle images - resolve relative image paths to proper URLs
+    body.querySelectorAll("img").forEach((img) => {
+        const src = img.getAttribute("src");
+        if (
+            src &&
+            !src.startsWith("http") &&
+            !src.startsWith("https") &&
+            !src.startsWith("//") &&
+            !src.startsWith("data:")
+        ) {
+            const resolved = resolveLink(src);
+            if (!resolved) return;
+
+            const candidates = [];
+
+            // Try to match any linked folder in the resolved path
+            for (const g of window.groups || []) {
+                // If the resolved path starts with the folder, strip the folder prefix
+                if (resolved.startsWith(g.folder + "/")) {
+                    const relPath = resolved.slice(g.folder.length + 1);
+                    candidates.push(
+                        `/files/${encodeURIComponent(g.folder)}/${relPath}`,
+                    );
+                    break;
+                }
+
+                // If the folder appears anywhere in the resolved path, use it
+                const idx = resolved.indexOf(g.folder + "/");
+                if (idx !== -1) {
+                    const relPath = resolved.slice(idx + g.folder.length + 1);
+                    candidates.push(
+                        `/files/${encodeURIComponent(g.folder)}/${relPath}`,
+                    );
+                    break;
+                }
+            }
+
+            // If path contains src/public, serve from static root
+            if (resolved.includes("/src/public/")) {
+                const parts = resolved.split("/src/public/");
+                if (parts[1]) candidates.push("/" + parts[1]);
+            }
+
+            // Try the original src as relative to current folder
+            if (window.groups && window.groups[0] && src.startsWith("./")) {
+                const relPath = src.slice(2); // Remove "./"
+                candidates.push(
+                    `/files/${encodeURIComponent(window.groups[0].folder)}/${relPath}`,
+                );
+            }
+
+            if (candidates.length === 0) return;
+
+            let idx = 0;
+            const tryNext = () => {
+                if (idx >= candidates.length) return;
+                img.src = candidates[idx++];
+            };
+
+            img.addEventListener("error", tryNext);
+            tryNext();
+        }
+    });
 }
 
 /* ── API ───────────────────────────────────────────────────────────── */
@@ -307,7 +371,7 @@ const HOME_HTML = `
         </div>
     </div>
     <div class="home-desc">Preview markdown files in browser.</div>
-    <div class="home-cta">Get started: <code>peekmd link ./docs</code> or click the <strong>folder icon</strong></div>
+    <div class="home-cta">Get started: <code>peekmd link &lt;folder_path&gt;</code> or click the <strong>folder icon</strong></div>
 </div>`;
 
 function buildTree(files) {

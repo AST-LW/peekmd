@@ -15,7 +15,6 @@ const EVENTS = ["change", "add", "unlink"];
  */
 function createWatcher(dir, broadcast, log = () => {}) {
     const ignored = [
-        /(^|[/\\])\./, // dotfiles / dotfolders
         (filePath) => {
             const rel = path.relative(dir, filePath).split(path.sep).join("/");
             if (!rel || rel === ".") return false;
@@ -34,20 +33,14 @@ function createWatcher(dir, broadcast, log = () => {}) {
         },
     });
 
-    watcher.on("ready", () => {
-        log(`[watcher] Ready: ${dir}`);
-    });
-
-    watcher.on("error", (err) => {
-        log(`[watcher] Error in ${dir}: ${err.message}`);
-    });
+    watcher.on("ready", () => {});
+    watcher.on("error", () => {});
 
     for (const event of EVENTS) {
         watcher.on(event, (absPath) => {
-            if (!absPath.endsWith(".md")) return;
+            if (!absPath.toLowerCase().endsWith(".md")) return;
             const rel = path.relative(dir, absPath).split(path.sep).join("/");
             if (config.isIgnored(rel)) return;
-            log(`[watcher] ${event}: ${rel} (in ${path.basename(dir)})`);
             broadcast({ type: event, folder: dir, path: rel });
         });
     }
@@ -74,14 +67,8 @@ function createConfigWatcher(onChange, log = () => {}) {
         },
     });
 
-    watcher.on("change", () => {
-        log("[config] Config file changed externally, syncing...");
-        onChange();
-    });
-
-    watcher.on("ready", () => {
-        log(`[config] Watching config: ${configPath}`);
-    });
+    watcher.on("change", onChange);
+    watcher.on("ready", () => {});
 
     return watcher;
 }

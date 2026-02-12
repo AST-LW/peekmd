@@ -271,7 +271,9 @@ switch (cmd) {
         if (!running && id) pid.clear();
         if (running) {
             const url = `http://localhost:${getPort()}`;
-            console.log("  Opening %s", url);
+            console.log(BANNER);
+            console.log("  %s\n", url);
+            console.log("  To stop: peekmd stop\n");
             openBrowser(url);
         } else {
             console.log("  Server not running. Starting...");
@@ -290,7 +292,9 @@ switch (cmd) {
             pid.write(child.pid);
 
             const url = `http://localhost:${getPort()}`;
+            console.log(BANNER);
             console.log("  %s\n", url);
+            console.log("  To stop: peekmd stop\n");
             openBrowser(url);
         }
         break;

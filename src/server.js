@@ -18,13 +18,12 @@ async function scanMarkdown(dir, root = dir) {
     try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
         for (const e of entries) {
-            if (e.name.startsWith(".") || e.name === "node_modules") continue;
             const full = path.join(dir, e.name);
             const rel = path.relative(root, full);
             if (config.isIgnored(rel)) continue;
             if (e.isDirectory())
                 results.push(...(await scanMarkdown(full, root)));
-            else if (e.name.endsWith(".md")) results.push(rel);
+            else if (e.name.toLowerCase().endsWith(".md")) results.push(rel);
         }
     } catch {}
     return results.sort();
@@ -63,10 +62,6 @@ function restartAllWatchers(wss) {
     }
 }
 
-/**
- * Sync watchers with the current config.
- * Starts watchers for new folders, stops watchers for removed folders.
- */
 function syncWatchers(wss, extraDirs = []) {
     const currentFolders = new Set(watchers.keys());
     const configFolders = config.getFolders();
@@ -74,21 +69,18 @@ function syncWatchers(wss, extraDirs = []) {
     for (const d of extraDirs) if (!allFolders.includes(d)) allFolders.push(d);
     const targetFolders = new Set(allFolders);
 
-    // Stop watchers for removed folders
     for (const folder of currentFolders) {
         if (!targetFolders.has(folder)) {
             stopWatcher(folder);
         }
     }
 
-    // Start watchers for new folders
     for (const folder of targetFolders) {
         if (!currentFolders.has(folder)) {
             startWatcher(folder, wss);
         }
     }
 
-    // Clear glob cache to pick up new ignore patterns
     config.clearGlobCache();
 }
 
@@ -170,15 +162,16 @@ async function createServer({ port, extraDirs = [] }) {
         }
     });
 
-    app.post("/api/link", (req, res) => {
+    app.post("/api/link", async (req, res) => {
         const { folder } = req.body;
         if (!folder) return res.status(400).json({ error: "folder required" });
 
         const result = config.linkFolder(folder);
         if (result.error) return res.status(400).json(result);
         if (result.added) startWatcher(result.path, wss);
+        const files = result.added ? await scanMarkdown(result.path) : [];
         broadcast(wss, { type: "folders-changed" });
-        res.json(result);
+        res.json({ ...result, files });
     });
 
     app.post("/api/unlink", (req, res) => {
@@ -254,7 +247,6 @@ async function createServer({ port, extraDirs = [] }) {
 
     for (const folder of getAllFolders()) startWatcher(folder, wss);
 
-    // Watch config file for external changes (e.g., CLI commands)
     configWatcher = createConfigWatcher(() => {
         syncWatchers(wss, extraDirs);
         broadcast(wss, { type: "folders-changed" });

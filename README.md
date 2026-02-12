@@ -2,6 +2,10 @@
 
 A CLI tool that renders Markdown files in the browser and live-reloads on every file save.
 
+## Preview
+
+![Home Page](./src/public/assets/home_page.png)
+
 ## Install
 
 ```bash
