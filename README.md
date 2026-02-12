@@ -1,24 +1,6 @@
-<div align="center">
-
-<h3 style="
-  color: var(--accent);
-  font-weight: 900;
-  font-size: 64px;
-  margin: 0;
-">
-  peek MD
-</h3>
-
-<p style="
-  color: var(--text-muted);
-  font-size: 18px;
-  font-weight: 500;
-  margin-top: 8px;
-">
-  A CLI tool that renders Markdown files in the browser.
+<p align="center">
+  <img src="./src/public/assets/title.png" alt="Peek MD" width="400">
 </p>
-
-</div>
 
 ## Preview
 
