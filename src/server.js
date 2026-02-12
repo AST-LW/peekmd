@@ -11,11 +11,6 @@ const config = require("./config");
 const watchers = new Map();
 let configWatcher = null;
 
-/* ── Logging ───────────────────────────────────────────────────────── */
-
-const DEBUG = process.env.PEEKMD_DEBUG === "1";
-const log = DEBUG ? (...args) => console.log(...args) : () => {};
-
 /* ── Utilities ─────────────────────────────────────────────────────── */
 
 async function scanMarkdown(dir, root = dir) {
@@ -37,16 +32,14 @@ async function scanMarkdown(dir, root = dir) {
 
 function broadcast(wss, data) {
     const msg = JSON.stringify(data);
-    log("[broadcast]", data.type, data.path || "");
     for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
 }
 
 function startWatcher(folder, wss) {
     if (!watchers.has(folder)) {
-        log("[server] Starting watcher for:", folder);
         watchers.set(
             folder,
-            createWatcher(folder, (d) => broadcast(wss, d), log),
+            createWatcher(folder, (d) => broadcast(wss, d)),
         );
     }
 }
@@ -54,14 +47,12 @@ function startWatcher(folder, wss) {
 function stopWatcher(folder) {
     const w = watchers.get(folder);
     if (w) {
-        log("[server] Stopping watcher for:", folder);
         w.close();
         watchers.delete(folder);
     }
 }
 
 function restartAllWatchers(wss) {
-    log("[server] Restarting all watchers...");
     for (const [folder, w] of watchers) {
         w.close();
     }
@@ -265,14 +256,10 @@ async function createServer({ port, extraDirs = [] }) {
 
     // Watch config file for external changes (e.g., CLI commands)
     configWatcher = createConfigWatcher(() => {
-        log(
-            "[server] Config changed, syncing watchers and notifying clients...",
-        );
         syncWatchers(wss, extraDirs);
         broadcast(wss, { type: "folders-changed" });
-    }, log);
+    });
 
-    log("[server] Server starting on port", port);
     return new Promise((resolve) => server.listen(port, resolve));
 }
 

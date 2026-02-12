@@ -274,7 +274,24 @@ switch (cmd) {
             console.log("  Opening %s", url);
             openBrowser(url);
         } else {
-            console.log("  Server not running. Start with: peekmd start");
+            console.log("  Server not running. Starting...");
+            pid.clear();
+
+            const child = require("node:child_process").spawn(
+                process.execPath,
+                [__filename, "__serve__", ...rest],
+                {
+                    stdio: "ignore",
+                    detached: true,
+                    env: { ...process.env, PORT: String(getPort()) },
+                },
+            );
+            child.unref();
+            pid.write(child.pid);
+
+            const url = `http://localhost:${getPort()}`;
+            console.log("  %s\n", url);
+            openBrowser(url);
         }
         break;
     }

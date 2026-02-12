@@ -59,6 +59,24 @@ function initTheme() {
 const escapeHtml = (s) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+function resolveLink(href) {
+    if (!activeFolderPath || !activeFilePath) return null;
+    let base = activeFolderPath;
+    if (activeFilePath.includes("/")) {
+        const dir = activeFilePath.substring(
+            0,
+            activeFilePath.lastIndexOf("/"),
+        );
+        base += "/" + dir;
+    }
+    try {
+        const resolved = new URL(href, "file://" + base + "/").pathname;
+        return resolved;
+    } catch {
+        return null;
+    }
+}
+
 async function renderMarkdown(raw) {
     const body = document.getElementById("markdownBody");
     const re = /^[ \t]*```mermaid[ \t]*\n([\s\S]*?)^[ \t]*```[ \t]*$/gm;
@@ -104,6 +122,32 @@ async function renderMarkdown(raw) {
             el.classList.add("mermaid-error");
         }
     }
+
+    // Handle internal links
+    body.querySelectorAll("a").forEach((a) => {
+        a.addEventListener("click", async (e) => {
+            const href = a.getAttribute("href");
+            if (
+                href &&
+                !href.startsWith("http") &&
+                !href.startsWith("//") &&
+                !href.startsWith("mailto:") &&
+                !href.startsWith("#")
+            ) {
+                e.preventDefault();
+                const resolved = resolveLink(href);
+                if (resolved) {
+                    for (const g of window.groups || []) {
+                        if (resolved.startsWith(g.folder + "/")) {
+                            const relPath = resolved.slice(g.folder.length + 1);
+                            await selectFile(g.folder, relPath);
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+    });
 }
 
 /* ── API ───────────────────────────────────────────────────────────── */
@@ -249,7 +293,21 @@ function initSearch() {
 
 const EMPTY_STATE = `<div class="empty-folders">
   ${svg("", 40, '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>')}
-  <div>No folders linked.<br>Click <strong>+</strong> to add one, or run<br><code>peekmd link ./docs</code></div>
+  <div>No folders linked.</div>
+</div>`;
+
+const HOME_HTML = `
+<div class="home">
+    <div class="home-logo">
+        <div class="logo-box">
+            <div class="logo-text">peek MD</div>
+            <div class="logo-lines">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+    </div>
+    <div class="home-desc">Preview markdown files in browser.</div>
+    <div class="home-cta">Get started: <code>peekmd link ./docs</code> or click the <strong>folder icon</strong></div>
 </div>`;
 
 function buildTree(files) {
@@ -298,9 +356,11 @@ function renderTree(tree, folder, prefix, depth) {
 async function refreshSidebar() {
     const list = document.getElementById("folderList");
     const groups = await api.folders();
+    window.groups = groups;
 
     if (!groups.length) {
         list.innerHTML = EMPTY_STATE;
+        document.getElementById("markdownBody").innerHTML = HOME_HTML;
         return;
     }
 
@@ -379,8 +439,7 @@ async function refreshSidebar() {
             await api.unlink(el.dataset.unlink);
             if (activeFolderPath === el.dataset.unlink) {
                 activeFolderPath = activeFilePath = null;
-                document.getElementById("markdownBody").innerHTML =
-                    '<div class="empty-state">Select a file to preview</div>';
+                document.getElementById("markdownBody").innerHTML = HOME_HTML;
             }
             refreshSidebar();
         }),
@@ -707,6 +766,10 @@ document.addEventListener("DOMContentLoaded", () => {
     initWS();
     initTooltips();
     refreshSidebar();
+    // show home page when nothing selected
+    if (!activeFolderPath && !activeFilePath) {
+        document.getElementById("markdownBody").innerHTML = HOME_HTML;
+    }
     document
         .getElementById("refreshBtn")
         .addEventListener("click", async () => {

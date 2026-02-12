@@ -1,4 +1,4 @@
-# PeekMD
+# peek MD
 
 A CLI tool that renders Markdown files in the browser and live-reloads on every file save.
 
@@ -46,7 +46,7 @@ Created automatically on first use. Can be edited manually.
 peekmd start                        # start server (daemon)
 peekmd stop                         # stop server
 peekmd status                       # check server status
-peekmd open                         # open browser to server
+peekmd open                         # open browser (starts server if not running)
 PORT=3000 peekmd start              # custom port (default: 4000)
 
 # Folder management
