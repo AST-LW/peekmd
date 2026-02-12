@@ -80,6 +80,7 @@ const HELP = `
     peekmd start                        Start server (daemon)
     peekmd stop                         Stop server
     peekmd status                       Check server status
+    peekmd open                         Open browser to server
     PORT=3000 peekmd start              Custom port (default: 4000)
 
   Folders:
@@ -260,6 +261,20 @@ switch (cmd) {
             );
         } else {
             console.log("  Server not running");
+        }
+        break;
+    }
+
+    case "open": {
+        const id = pid.read();
+        const running = !!(id && pid.alive(id));
+        if (!running && id) pid.clear();
+        if (running) {
+            const url = `http://localhost:${getPort()}`;
+            console.log("  Opening %s", url);
+            openBrowser(url);
+        } else {
+            console.log("  Server not running. Start with: peekmd start");
         }
         break;
     }

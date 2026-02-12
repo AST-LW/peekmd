@@ -46,6 +46,7 @@ Created automatically on first use. Can be edited manually.
 peekmd start                        # start server (daemon)
 peekmd stop                         # stop server
 peekmd status                       # check server status
+peekmd open                         # open browser to server
 PORT=3000 peekmd start              # custom port (default: 4000)
 
 # Folder management
